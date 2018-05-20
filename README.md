@@ -1,6 +1,7 @@
 # BucketMQ
 BucketMQ is a low barrier to entry message queue.
 Ideal for integrating micro-services via asynchronous messaging.
+![BucketMQ](https://media.giphy.com/media/PJnZwj2O7LKHC/giphy.gif)
 
 ## Terminology
 - Message: A JSON message containing 2 parts
