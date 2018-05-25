@@ -2,6 +2,7 @@
 BucketMQ is a productive integration engine.
 Fully configured via YAML files checked into Git repositories.
 Supports multiple transports via a modular system.
+
 ![BucketMQ](https://media.giphy.com/media/PJnZwj2O7LKHC/giphy.gif)
 
 ## Terminology
