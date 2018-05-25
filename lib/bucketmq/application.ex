@@ -12,8 +12,6 @@ defmodule BucketMQ.Application do
       supervisor(BucketMQ.Repo, []),
       # Start the endpoint when the application starts
       supervisor(BucketMQWeb.Endpoint, []),
-      # Start your own worker by calling: BucketMQ.Worker.start_link(arg1, arg2, arg3)
-      # worker(BucketMQ.Worker, [arg1, arg2, arg3]),
     ]
 
     # See https://hexdocs.pm/elixir/Supervisor.html
