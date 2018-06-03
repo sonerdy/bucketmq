@@ -1,5 +1,6 @@
 defmodule BucketMQ.ProjectsTest do
   use BucketMQ.DataCase
+  import Double
 
   alias BucketMQ.Projects
 
@@ -36,6 +37,14 @@ defmodule BucketMQ.ProjectsTest do
       assert project.title == "some title"
     end
 
+    test "create_project/1 with valid data publishes the project" do
+      stub_pubsub = BucketMQ.PubSub
+      |> double()
+      |> allow(:publish, fn(:project_created, _message) -> :ok end)
+      {:ok, %Project{} = project} = Projects.create_project(@valid_attrs, stub_pubsub)
+      assert_receive {:publish, :project_created, ^project}
+    end
+
     test "create_project/1 with invalid data returns error changeset" do
       assert {:error, %Ecto.Changeset{}} = Projects.create_project(@invalid_attrs)
     end
@@ -49,6 +58,15 @@ defmodule BucketMQ.ProjectsTest do
       assert project.title == "some updated title"
     end
 
+    test "update_project/2 with valid data publishes the project" do
+      project = project_fixture()
+      stub_pubsub = BucketMQ.PubSub
+      |> double()
+      |> allow(:publish, fn(:project_updated, _message) -> :ok end)
+      {:ok, project} = Projects.update_project(project, @update_attrs, stub_pubsub)
+      assert_receive {:publish, :project_updated, ^project}
+    end
+
     test "update_project/2 with invalid data returns error changeset" do
       project = project_fixture()
       assert {:error, %Ecto.Changeset{}} = Projects.update_project(project, @invalid_attrs)
@@ -59,6 +77,16 @@ defmodule BucketMQ.ProjectsTest do
       project = project_fixture()
       assert {:ok, %Project{}} = Projects.delete_project(project)
       assert_raise Ecto.NoResultsError, fn -> Projects.get_project!(project.id) end
+    end
+
+    test "delete_project/1 publishes the project deletion" do
+      project = project_fixture()
+      stub_pubsub = BucketMQ.PubSub
+      |> double()
+      |> allow(:publish, fn(:project_deleted, _message) -> :ok end)
+      {:ok, %Project{}} = Projects.delete_project(project, stub_pubsub)
+      project_id = project.id
+      assert_receive {:publish, :project_deleted, %Project{id: ^project_id}}
     end
 
     test "change_project/1 returns a project changeset" do

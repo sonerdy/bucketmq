@@ -8,6 +8,8 @@ defmodule BucketMQ.Projects do
 
   alias BucketMQ.Projects.Project
 
+  @pubsub BucketMQ.PubSub
+
   @doc """
   Returns the list of projects.
 
@@ -49,10 +51,15 @@ defmodule BucketMQ.Projects do
       {:error, %Ecto.Changeset{}}
 
   """
-  def create_project(attrs \\ %{}) do
-    %Project{}
+  def create_project(attrs \\ %{}, pubsub \\ @pubsub) do
+    result = %Project{}
     |> Project.changeset(attrs)
     |> Repo.insert()
+    case result do
+      {:ok, project} -> pubsub.publish(:project_created, project)
+      _ -> :noop
+    end
+    result
   end
 
   @doc """
@@ -67,10 +74,15 @@ defmodule BucketMQ.Projects do
       {:error, %Ecto.Changeset{}}
 
   """
-  def update_project(%Project{} = project, attrs) do
-    project
+  def update_project(%Project{} = project, attrs, pubsub \\ @pubsub) do
+    result = project
     |> Project.changeset(attrs)
     |> Repo.update()
+    case result do
+      {:ok, project} -> pubsub.publish(:project_updated, project)
+      _ -> :noop
+    end
+    result
   end
 
   @doc """
@@ -85,8 +97,13 @@ defmodule BucketMQ.Projects do
       {:error, %Ecto.Changeset{}}
 
   """
-  def delete_project(%Project{} = project) do
-    Repo.delete(project)
+  def delete_project(%Project{} = project, pubsub \\ @pubsub) do
+    result = Repo.delete(project)
+    case result do
+      {:ok, project} -> pubsub.publish(:project_deleted, project)
+      _ -> :noop
+    end
+    result
   end
 
   @doc """
