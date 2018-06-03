@@ -12,6 +12,9 @@ defmodule BucketMQ.Application do
       supervisor(BucketMQ.Repo, []),
       # Start the endpoint when the application starts
       supervisor(BucketMQWeb.Endpoint, []),
+      worker(Registry, [
+        [keys: :unique, name: :bucketmq_pubsub, partitions: System.schedulers_online()]
+      ])
     ]
 
     # See https://hexdocs.pm/elixir/Supervisor.html

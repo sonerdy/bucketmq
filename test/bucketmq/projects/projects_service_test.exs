@@ -1,6 +1,6 @@
-defmodule BucketMQ.ProjectFetcherTest do
+defmodule BucketMQ.Projects.ProjectsServiceTest do
   alias BucketMQ.Projects
-  alias BucketMQ.ProjectFetcher
+  alias BucketMQ.Projects.ProjectsService
   use ExUnit.Case, async: true
   import Double
   import BucketMQ.Factory
@@ -11,8 +11,8 @@ defmodule BucketMQ.ProjectFetcherTest do
       context = Projects
       |> double()
       |> allow(:list_projects, fn -> [project] end)
-      {:ok, pid} = GenServer.start_link(ProjectFetcher, context)
-      result = ProjectFetcher.projects(pid)
+      {:ok, pid} = GenServer.start_link(ProjectsService, context)
+      result = ProjectsService.projects(pid)
       assert result == [project]
     end
   end

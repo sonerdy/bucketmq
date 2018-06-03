@@ -1,22 +1,23 @@
-defmodule BucketMQ.ProjectFetcher do
+defmodule BucketMQ.Projects.ProjectsService do
   use GenServer
   alias BucketMQ.Projects
+
+  @projects_context Projects
 
   defmodule State do
     defstruct projects_context: Projects, projects: []
   end
 
-
-  @impl true
-  def init(projects_context) do
-    state = %State{projects_context: projects_context}
-    GenServer.cast(self(), :update_projects)
-    {:ok, state}
-  end
-
   # API
   def projects(pid) do
     GenServer.call(pid, :projects)
+  end
+
+  @impl true
+  def init(projects_context \\ @projects_context) do
+    state = %State{projects_context: projects_context}
+    GenServer.cast(self(), :update_projects)
+    {:ok, state}
   end
 
   @impl true

@@ -8,7 +8,7 @@ Supports multiple transports via a modular system.
 ## Terminology
 - Project: A github repository containing YAML config files.
 - Bucket: Queues input and processes through a set of configured steps.
-- Trigger: An entrypoint into a bucket.
+- Intake: An entrypoint into a bucket.
 - Step: An individual operation within a bucket.
 
 ## YAML Based Config
