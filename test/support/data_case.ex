@@ -22,6 +22,7 @@ defmodule BucketMQ.DataCase do
       import Ecto.Changeset
       import Ecto.Query
       import BucketMQ.DataCase
+      import Double
     end
   end
 

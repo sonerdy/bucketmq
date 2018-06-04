@@ -9,7 +9,7 @@ defmodule BucketMQ.Projects.ProjectsService do
   end
 
   # API
-  def projects(pid) do
+  def projects(pid \\ __MODULE__) do
     GenServer.call(pid, :projects)
   end
 

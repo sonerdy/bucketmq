@@ -1,8 +1,48 @@
 defmodule BucketMQ.Projects.ProjectFiles do
+  use GenServer
+
   @projects_folder_key "BUCKETMQ_PROJECTS_FOLDER"
   @default_projects_folder "projects"
   @acceptable_filetypes ["yml", "yaml", "md", "markdown"]
-  @deps %{system: System, file: File}
+  @deps %{
+    system: System,
+    file: File,
+    pubsub: BucketMQ.PubSub,
+    path: Path
+  }
+
+  defmodule State do
+    defstruct deps: @deps, projects: [], project_files: %{}
+  end
+
+  def init(deps \\ @deps) do
+    deps.pubsub.subscribe(:project_created, {__MODULE__, :add_project})
+    deps.pubsub.subscribe(:project_updated, {__MODULE__, :update_project})
+    deps.pubsub.subscribe(:project_deleted, {__MODULE__, :remove_project})
+    {:ok, %State{deps: deps}}
+  end
+
+  @doc """
+  Used to initialize the list of projects.
+  """
+  def set_projects(projects, pid \\ __MODULE__) do
+    GenServer.cast(pid, {:set_projects, projects})
+  end
+
+  def get_state(pid \\ __MODULE__) do
+    GenServer.call(pid, :get_state)
+  end
+
+  @impl true
+  def handle_cast({:set_projects, projects}, state) do
+    {:noreply, %{state | projects: projects}}
+  end
+
+  @impl true
+  def handle_call(:get_state, _from, state) do
+    {:reply, state, state}
+  end
+
 
   def fetch_project(project, deps \\ @deps) do
     projects_dir = deps.system.get_env(@projects_folder_key) || @default_projects_folder
@@ -11,20 +51,11 @@ defmodule BucketMQ.Projects.ProjectFiles do
     pull_latest(projects_folder(deps), project, deps)
   end
 
-  @doc """
-  Returns a map of the project config.
-  %{
-    "foldername" => %{
-      "README.md" => "#README CONTENTS",
-      "filename.yml" => "yaml"
-    }
-  }
-  """
   def crawl(project, deps \\ @deps) do
     extensions = @acceptable_filetypes |> Enum.join(",")
 
     files = "#{project_folder(project, deps)}/**/*.{#{extensions}}"
-    |> Path.wildcard()
+    |> deps.path.wildcard()
     |> map_files(%{}, deps)
   end
 
@@ -44,7 +75,7 @@ defmodule BucketMQ.Projects.ProjectFiles do
   end
 
   defp ensure_projects_folder!(dir, %{file: file}) do
-    file.mkdir_p!(dir)
+    :ok = file.mkdir_p!(dir)
   end
 
   defp ensure_project_cloned(projects_dir, project, %{system: system}) do
@@ -60,7 +91,7 @@ defmodule BucketMQ.Projects.ProjectFiles do
     {_, 0} = system.cmd(
       "git",
       ["pull"],
-      [cd: projects_dir]
+      [cd: project_dir]
     )
   end
 end
