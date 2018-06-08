@@ -8,41 +8,34 @@ defmodule BucketMQ.Projects.ProjectFiles do
     system: System,
     file: File,
     pubsub: BucketMQ.PubSub,
-    path: Path
+    path: Path,
+    projects: BucketMQ.Projects
   }
 
   defmodule State do
-    defstruct deps: @deps, projects: [], project_files: %{}
+    defstruct deps: @deps, projects: %{}
   end
 
   def init(deps \\ @deps) do
     deps.pubsub.subscribe(:project_created, {__MODULE__, :add_project})
     deps.pubsub.subscribe(:project_updated, {__MODULE__, :update_project})
     deps.pubsub.subscribe(:project_deleted, {__MODULE__, :remove_project})
-    {:ok, %State{deps: deps}}
+    projects = deps.projects.list_projects()
+    |> Enum.reduce(%{}, fn(project, acc) ->
+      Map.put(acc, project, crawl(project, deps))
+    end)
+    state = %State{deps: deps, projects: projects}
+    {:ok, state}
   end
 
-  @doc """
-  Used to initialize the list of projects.
-  """
-  def set_projects(projects, pid \\ __MODULE__) do
-    GenServer.cast(pid, {:set_projects, projects})
-  end
-
-  def get_state(pid \\ __MODULE__) do
-    GenServer.call(pid, :get_state)
-  end
-
-  @impl true
-  def handle_cast({:set_projects, projects}, state) do
-    {:noreply, %{state | projects: projects}}
+  def get_projects(pid \\ __MODULE__) do
+    GenServer.call(pid, :get_projects)
   end
 
   @impl true
-  def handle_call(:get_state, _from, state) do
-    {:reply, state, state}
+  def handle_call(:get_projects, _from, state) do
+    {:reply, state.projects, state}
   end
-
 
   def fetch_project(project, deps \\ @deps) do
     projects_dir = deps.system.get_env(@projects_folder_key) || @default_projects_folder
@@ -52,18 +45,34 @@ defmodule BucketMQ.Projects.ProjectFiles do
   end
 
   def crawl(project, deps \\ @deps) do
-    extensions = @acceptable_filetypes |> Enum.join(",")
-
-    files = "#{project_folder(project, deps)}/**/*.{#{extensions}}"
-    |> deps.path.wildcard()
+    project
+    |> list_files(deps)
+    |> read_files([], deps)
     |> map_files(%{}, deps)
   end
 
-  defp map_files([], state, _deps), do: state
-  defp map_files([file | files], state, deps) do
-    file_contents = File.read!(file)
-    path_parts = file |> String.split("/")
-    put_in(state, Enum.map(path_parts, &Access.key(&1, %{})), file_contents)
+  defp list_files(project, deps) do
+    extensions = @acceptable_filetypes |> Enum.join(",")
+    project_folder = "#{project_folder(project, deps)}/"
+    "#{project_folder}**/*.{#{extensions}}"
+    |> deps.path.wildcard()
+    |> Enum.map(fn(file) ->
+      subfolder = String.replace_leading(file, project_folder, "")
+      {file, subfolder}
+    end)
+  end
+
+  defp map_files([], state, deps), do: state
+  defp map_files([{subfolder, contents} | files], state, deps) do
+    path_parts = subfolder |> String.split("/")
+    state = put_in(state, Enum.map(path_parts, &Access.key(&1, %{})), contents)
+    map_files(files, state, deps)
+  end
+
+  defp read_files([], result, _deps), do: result
+  defp read_files([{file, subfolder} | files], result, deps) do
+    {:ok, contents} = deps.file.read(file)
+    read_files(files, result ++ [{subfolder, contents}], deps)
   end
 
   defp projects_folder(deps) do

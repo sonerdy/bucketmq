@@ -13,13 +13,21 @@ defmodule BucketMQ.Projects.ProjectFilesTest do
     assert_receive {:subscribe, :project_deleted, {ProjectFiles, :remove_project}}
   end
 
-  test "&set_projects/1 sets the project state" do
-    deps = deps()
-    {:ok, pid} = GenServer.start_link(ProjectFiles, deps)
-    projects = [stub_project()]
-    ProjectFiles.set_projects(projects, pid)
-    state = ProjectFiles.get_state(pid)
-    assert state.projects == projects
+  test "&get_projects/1 returns projects" do
+    {:ok, pid} = GenServer.start_link(ProjectFiles, deps())
+    projects = ProjectFiles.get_projects(pid)
+    stub_project = stub_project()
+
+    project = projects |> Map.keys |> List.first
+    files = Map.get(projects, project)
+    assert files == %{
+              "README.md" => "Contents of README.md",
+              "example.yml" => "Contents of example.yml",
+              "subfolder" => %{
+                "another_example.yaml" => "Contents of subfolder/another_example.yaml"
+              }
+            }
+    assert project == stub_project()
   end
 
   defp stub_project do
@@ -40,15 +48,23 @@ defmodule BucketMQ.Projects.ProjectFilesTest do
     file_stub = File
     |> double()
     |> allow(:mkdir_p!, fn("projects/test_project") -> :ok end)
+    |> allow(:read, fn("projects/test_project/README.md") -> {:ok, "Contents of README.md"} end)
+    |> allow(:read, fn("projects/test_project/example.yml") -> {:ok, "Contents of example.yml"} end)
+    |> allow(:read, fn("projects/test_project/subfolder/another_example.yaml") -> {:ok, "Contents of subfolder/another_example.yaml"} end)
 
     path_stub = Path
     |> double()
     |> allow(:wildcard, fn("projects/test_project/**/*.{yml,yaml,md,markdown}") ->
       [
         "projects/test_project/README.md",
-        "projects/test_project/example.yml"
+        "projects/test_project/example.yml",
+        "projects/test_project/subfolder/another_example.yaml"
       ]
     end)
+
+    projects_stub = BucketMQ.Projects
+    |> double()
+    |> allow(:list_projects, fn -> [stub_project()] end)
 
     pubsub_stub = BucketMQ.PubSub
     |> double()
@@ -58,7 +74,8 @@ defmodule BucketMQ.Projects.ProjectFilesTest do
       system: system_stub,
       file: file_stub,
       path: path_stub,
-      pubsub: pubsub_stub
+      pubsub: pubsub_stub,
+      projects: projects_stub
     }
   end
 end
